@@ -1542,7 +1542,8 @@ func terminateSectors(rt Runtime, sectorNos *abi.BitField, terminationType power
 			rt.Abortf(exitcode.ErrIllegalState, "failed to expand faults")
 		}
 
-		var skippedSectorNos []uint64 // sectors we're not terminating because they either don't exist or have expired.
+		// sectors we're not terminating because they either don't exist or have expired.
+		var notTerminatedSectorNos []uint64
 		pledgeRequirementToRemove := abi.NewTokenAmount(0)
 		err = sectorNos.ForEach(func(sectorNo uint64) error {
 			sector, found, err := st.GetSector(store, abi.SectorNumber(sectorNo))
@@ -1554,10 +1555,7 @@ func terminateSectors(rt Runtime, sectorNos *abi.BitField, terminationType power
 			// have already expired, have been terminated due to a
 			// faults, etc.
 			if !found {
-				// XXX: Should we fail if the termination reason
-				// is "manual termination"? Or should we just
-				// let termination be idempotent?
-				skippedSectorNos = append(skippedSectorNos, sectorNo)
+				notTerminatedSectorNos = append(notTerminatedSectorNos, sectorNo)
 				return nil
 			}
 
@@ -1568,8 +1566,7 @@ func terminateSectors(rt Runtime, sectorNos *abi.BitField, terminationType power
 			// somehow but the termination wasn't removed from the
 			// SectorExpirations queue.
 			if terminationType == power.SectorTerminationExpired && currentEpoch < sector.Expiration {
-				// XXX: Should this be <=? Where is the boundary.
-				skippedSectorNos = append(skippedSectorNos, sectorNo)
+				notTerminatedSectorNos = append(notTerminatedSectorNos, sectorNo)
 				return nil
 			}
 
@@ -1586,7 +1583,7 @@ func terminateSectors(rt Runtime, sectorNos *abi.BitField, terminationType power
 		})
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load sector metadata")
 
-		terminatedSectorNos, err := bitfield.SubtractBitField(sectorNos, bitfield.NewFromSet(skippedSectorNos))
+		terminatedSectorNos, err := bitfield.SubtractBitField(sectorNos, bitfield.NewFromSet(notTerminatedSectorNos))
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to subtract skipped sector set")
 
 		// lower initial pledge requirement
