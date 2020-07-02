@@ -9,13 +9,13 @@ import (
 )
 
 // The period over which all a miner's active sectors will be challenged.
-const WPoStProvingPeriod = abi.ChainEpoch(builtin.EpochsInDay) // 24 hours
+const WPoStProvingPeriod = abi.ChainEpoch(360) // ~~24 hours~~                       every 360 epochs
 
 // The duration of a deadline's challenge window, the period before a deadline when the challenge is available.
-const WPoStChallengeWindow = abi.ChainEpoch(40 * 60 / builtin.EpochDurationSeconds) // 40 minutes (36 per day)
+const WPoStChallengeWindow = abi.ChainEpoch(10) // ~~40 minutes (36 per day)~~        every 10 epochs;
 
 // The number of non-overlapping PoSt deadlines in each proving period.
-const WPoStPeriodDeadlines = uint64(WPoStProvingPeriod / WPoStChallengeWindow)
+const WPoStPeriodDeadlines = uint64(WPoStProvingPeriod / WPoStChallengeWindow) // 30 periods (one period every 10 epochs?)
 
 func init() {
 	// Check that the challenge windows divide the proving period evenly.
