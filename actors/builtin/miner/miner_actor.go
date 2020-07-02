@@ -578,6 +578,11 @@ func (a Actor) ConfirmSectorProofsValid(rt Runtime, params *builtin.ConfirmSecto
 		preCommits = append(preCommits, precommit)
 	}
 
+	// When all prove commits have failed abort early
+	if len(preCommits) == 0 {
+		rt.Abortf(exitcode.ErrIllegalArgument, "all prove commits failed to validate")
+	}
+
 	// This transaction should replace the one inside the loop above.
 	// Migrate state mutations into here.
 	totalPledge := big.Zero()
