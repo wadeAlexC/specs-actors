@@ -770,6 +770,35 @@ func TestProveCommit(t *testing.T) {
 		actor.proveCommitSectorAndConfirm(rt, precommit, precommitEpoch, makeProveCommit(actor.nextSectorNo), proveCommitConf{})
 	})
 
+	t.Run ("drop invalid prove commit while processing valid one", func (t *testing.T) { 
+		rt := builder.Build(t)
+		actor.constructAndVerify(rt)
+
+		// make two precommits
+		expiration := 100*miner.WPoStProvingPeriod + periodOffset - 1
+		precommitEpoch := rt.Epoch() + 1
+		rt.SetEpoch(precommitEpoch)
+		precommitA := makePreCommit(actor.nextSectorNo, rt.Epoch()-1, expiration, nil)
+		actor.preCommitSector(rt, precommitA)
+		sectorNoA := actor.nextSectorNo
+		actor.nextSectorNo++
+		precommitB := makePreCommit(actor.nextSectorNo, rt.Epoch()-1, expiration, nil)
+		actor.preCommitSector(rt, precommitB)
+		sectorNoB := actor.nextSectorNo
+
+		// handle both prove commits in the same epoch 
+		info := actor.getInfo(rt)
+		rt.SetEpoch(precommitEpoch + miner.MaxSealDuration[info.SealProofType] - 1)
+
+		actor.proveCommitSector(rt, precommitA, precommitEpoch, makeProveCommit(sectorNoA))
+		actor.proveCommitSector(rt, precommitB, precommitEpoch, makeProveCommit(sectorNoB))
+
+		conf := proveCommitConf {
+			verifyDealsExit: make(map[abi.SectorNumber]exitcode.ExitCode),
+		}
+		conf.verifyDealsExit[sectorNoA] = exitcode.ErrIllegalArgument
+		actor.confirmSectorProofsValid(rt, conf, precommitEpoch, precommitA, precommitB)
+	})
 }
 
 func TestProvingPeriodCron(t *testing.T) {
